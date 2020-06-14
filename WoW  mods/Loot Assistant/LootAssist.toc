@@ -1,0 +1,6 @@
+## Author : Shawn Ray
+## Interface: 11304
+## Title: LootAssist
+## Notes: This addon shall aid in the distribution of loot council items  in World of Warcraft.
+LootAssist.lua
+LootAssist.xml
