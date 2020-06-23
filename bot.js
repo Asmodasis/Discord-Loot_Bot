@@ -3,24 +3,40 @@
 const Discord = require('discord.js');                                                          // The class client for connecting a bot to discord.                             
 var assert = require('assert')                                                                  // for handling assertions 
 const SynchronousPromise = require('synchronous-promise')
-
-const bot = new Discord.Client();                                                               // Create a Client instance with our bot token.
-const guild = new Discord.Guild(bot, bot.users);
-const commandPrefix = '~';                                                                      // The prefix to initialize the commands
-
-//var GoogleSpreadsheet = require('google-spreadsheet');                                          // for working with google spreadsheet
+var {GoogleSpreadsheet} = require('google-spreadsheet');                                          // for working with google spreadsheet
 var creds = require('./credentials.json')
 
+const fs = require('fs');
+const readline = require('readline');
+const {google} = require('googleapis');
+const { raw } = require('body-parser');
 
-const botToken = '';
+// If modifying these scopes, delete token.json.
+//const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+// The file token.json stores the user's access and refresh tokens, and is
+// created automatically when the authorization flow completes for the first
+// time.
+const TOKEN_PATH = 'token.json';
+
+
+/**
+ * Create an OAuth2 client with the given credentials, and then execute the
+ * given callback function.
+ * @param {Object} credentials The authorization client credentials.
+ * @param {function} callback The callback to call with the authorized client.
+ */
+
+const commandPrefix = '~';                                                                      // The prefix to initialize the commands
+
+const botToken = '..';
 const spreadID = '';
 const guildID = "";
-//var doc = new GoogleSpreadsheet(spreadID);  
 
-//const guild = new Discord.Guild(bot, bot.database.query)
-
-
-var hasRaidBegun = false;
+const officerRoleID = '';
+const programmerRoleID = '';
+const guildMasterRoleID = '';
+const classLeaderRoleID = '';
 
 const priestRoleID = '<@&>';
 const warriorRoleID = '<@&>';
@@ -30,6 +46,19 @@ const warlockRoleID = '<@&>';
 const hunterRoleID = '<@&>';
 const rogueRoleID = '<@&>';
 const paladinRoleID = '<@&>';
+
+const bot = new Discord.Client();                                                               // Create a Client instance with our bot token.
+
+var doc = new GoogleSpreadsheet(spreadID);  
+const guild = new Discord.Guild()
+
+var hasRaidBegun = true; // TODO : This value was changed to assist in debugging
+//var hasRaidBegun = false;
+
+//doc.useServiceAccountAuth(creds);                                                               // validate the credentials for the google docs
+//doc.loadInfo();                                                                                 // load info from the doc
+
+//console.log(doc.title)  
 
 bot.on('ready', () => {                                                                         // When the bot is connected and ready, log to console.
    console.log('Loot Assistant is connected and ready.');
@@ -41,7 +70,7 @@ bot.on('ready', () => {                                                         
         },
         status: 'online'
 })
-   
+
 });
 
 var nick, us, ide;
@@ -50,101 +79,157 @@ var nick, us, ide;
 // this event will fire and and check the valid commands and display
 // the appropriate responses
 bot.on('message', async (msg) => {
-    let time = new Date().toDateString();
+
+    const guild = bot.guilds.cache.get(guildID);                                                // generate the guild list
+
+
+    var time;
     if (msg.author.bot) return;                                                                 // if the author of the message is a bot, don't do anything
     if(!msg.content.startsWith(commandPrefix)) return;                                          // only accept commands in the form of the prefix
-
-    //console.log(msg.content.split(' ')[0]);
-    
-    //const g = guild.guilds.fetch(guildID);
-    //let guildMembers = msg.guild.members.fetch()
+    if (!msg.guild) return;                                                                     // won't respond to direct messages
 
     let args = msg.content.split(' ');
-    //let args = msg.content.slice(commandPrefix.length).trim().split(' ');                     // Arguments, valid command example ~help will display a help message or ~say I am a bot, arg[0] would be I and arg[1] would be am
+    let firstUser = (msg.mentions.users == null) ? null : msg.mentions.users.first()               // enforce null conditions
+    //let firstUser = msg.mentions.users.first()
+
+    let member = new Promise ((resolve, reject) => {
+        resolve(guild.members.fetch(firstUser));
+
+    });
+    if(!(msg.member.roles.cache.has(officerRoleID)     ||
+         msg.member.roles.cache.has(programmerRoleID)  ||
+         msg.member.roles.cache.has(guildMasterRoleID) ||
+         msg.member.roles.cache.has(classLeaderRoleID)
+         )
+       ){
+        msg.channel.send('Only a user with an Officer role may invoke this bot.');
+        return;
+    }
+   
 
     for(var i = 0; i < args.length; ++i){
         let command = args[i].toLowerCase();                                                    // force all arguments to lowercase for easy of use
-        //console.log(i);
+    
         switch(command) {                                                                       // check the valid commands
         case "~help":
                 helpMessage(msg.author);                                                        // display the help message to the invokers private message
-                //msg.channel.send(bot.channels.get(615984071402717214)) //.roles.get(priestRoleID));
             break;
-            case "~loot":                                                                       // handles loot distribution for the specified players
-                //console.log(i)
-                if(hasRaidBegun) applyLoot(msg, args[i+1], i+2, args, false);
-                else 
+            case "~loot": 
+                if(!(hasRaidBegun)) {
                     msg.channel.send('A raid must be active before loot can be applied!');
+                    return;
+                }else{                                                                                            // handles loot distribution for the specified players
+                    await member.then((values) => {
+                        var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
+                        let lootUsr = '';
+                        let lootString = '';
+                        for(var pos = i+2; pos < args.length; ++pos){                                              // Start at the position in the command list when 
+                            if(args[pos].startsWith(commandPrefix)) break;                                            // all commands shall start with '~' if they do, it's not an (item)
+                            lootString = lootString + (args[pos]) + ' ';                                           // append all string literals into an (item)
+                        }                    
+
+                        if((nick == null)){                                                         // if the nickname is null, the user doesn't have one
+                            //console.log(firstUser.username)
+                            //msg.channel.send(firstUser.username)
+                            lootUsr = firstUser.username;
+                        }else{
+                            //console.log(nick)
+                            //msg.channel.send(nick)
+                            lootUsr = nick;
+                        }
+                        //fs.readFile('credentials.json', (err, content) => {
+                        //    if (err) return console.log('Error loading client secret file:', err);
+                            // Authorize a client with credentials, then call the Google Sheets API.
+                        //    authorize(JSON.parse(content), _accessUserFromDoc(lootString, time));
+                        //})
+                        //console.log("msg is  : " + msg)
+                        console.log("args[i+2] is : " + args[i+2])
+                        //console.log("i+2 is : " + i+2)
+                        //console.log("time is  : " + time)
+                        console.log("loot user is  : " + lootUsr)
+                        console.log("loot String is  : " + lootString)
+                        applyLoot(msg, lootString, lootUsr, time, false);
+                }).catch((err) => {console.log("Exception caught: " + err);});
+            }
             break;
             case "~retract":
-                if(hasRaidBegun) applyLoot(msg, args[i+1], i+2, args, true);
-                else 
+                if(!(hasRaidBegun)) {
                     msg.channel.send('A raid must be active before loot can be applied!');
+                    return;
+                }else{
+                    await member.then((values) => {
+                        var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
+                        let retractUsr = '';
+                        let retractString = '';
+                        for(var pos = i+2; pos < args.length; ++pos){                                              // Start at the position in the command list when 
+                            if(args[pos].startsWith(commandPrefix)) break;                                            // all commands shall start with '~' if they do, it's not an (item)
+                            retractString = retractString + (args[pos]) + ' ';                                           // append all string literals into an (item)
+                        }                    
+
+                        if((nick == null)){                                                         // if the nickname is null, the user doesn't have one
+                            //console.log(firstUser.username)
+                            //msg.channel.send(firstUser.username)
+                            retractUsr = firstUser.username;
+                        }else{
+                            //console.log(nick)
+                            //msg.channel.send(nick)
+                            retractUsr = nick;
+                        }
+                        //fs.readFile('credentials.json', (err, content) => {
+                        //    if (err) return console.log('Error loading client secret file:', err);
+                            // Authorize a client with credentials, then call the Google Sheets API.
+                        //    authorize(JSON.parse(content), _accessUserFromDoc(retractString, time));
+                        //});
+                        //console.log("msg is  : " + msg)
+                        console.log("args[i+2] is : " + args[i+2])
+                        console.log("i+2 is : " + i+2)
+                        console.log("time is  : " + time)
+                        console.log("retract user is  : " + retractUsr)
+                        applyLoot(msg, retractString, retractUsr, time, true);
+                }).catch((err) => {console.log("Exception caught: " + err);});
+            }
             break;
             case "~loot-history":
-                //console.log(getUserFromMention(msg.mentions.users.first().member.display_name))
-                //console.log(bot.guild.get(msg.mentions.users.first()));
-                //let mem = msg.guild.members.fetch()
-                //console.log(args[i+1])
-                //var nick, us, ide;
-               /*
-                const guildMembers = await new Promise((resolve, reject) => {                // fetches all the guild members
-                    if(!(msg.mentions.users.first()==null)) return resolve(msg.guild.members.fetch(msg.mentions.users.first()));
-                    else reject('Failure!');
-                    }).then((promise) => {
-                        nick        = (msg.mentions.users.first().username.users.nickname)
-                        us          = (msg.mentions.users.first().username)
-                        ide         = (msg.mentions.users.first().id)
-                        return msg.guild.members.fetch(msg.mentions.users.first())
-                    }).catch((err) => {console.log("Exception caught: " + err);});                                  
-                   
-                   // console.log(msg.guild.members.fetch(msg.mentions.users.first()))
-*/
-                let firstUser = msg.mentions.users.first()
-                let member = guild.member(firstUser);
-                let nick = member ? member.displayName : null;
+                await member.then((values) => {
+                    var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
+                    //let historyString = '';
 
-                console.log(args[i+1])
-                msg.channel.send(args[i+1]);
- /*               console.log(msg.guild.members.fetch(msg.mentions.users.first()).then( (promise) => {
-                                nick = (msg.mentions.users.first().nickname)
-                                us = (msg.mentions.users.first().username)
-                                ide = (msg.mentions.users.first().id)
-                                return msg.guild.members.fetch(msg.mentions.users.first())
-                            }
+                    if(nick == null){                                                   // if the nickname is null, the user doesn't have one
+                        if(!(firstUser==null)){                                          
+                            //console.log(firstUser.username);
+                            //msg.channel.send(firstUser.username);
+                            lootHistory (msg, firstUser.username, null, time, false)
+                        }else{                                                          // we're in class mode
+                            //console.log(getClassFromMention(args[i+1]));
+                            //msg.channel.send(getClassFromMention(args[i+1]));
+                            lootHistory (msg, null, getClassFromMention(args[i+1]), time, true);
+                        }
+  
+                    }else {                                                             // the user has an assigned nickname
+                        //console.log(nick);
+                        //msg.channel.send(nick);
+                        lootHistory (msg, nick, null, time, false);
+                    }
 
-                let nick    = (guildMembers.nickname);
-                let us      = (guildMembers.username);
-                let ide     = (guildMembers.id);
-*/
-                //TODO: THESE PRINT BEFORE THE PROMISE IS RESOLVED
-               // console.log(nick)
-                //console.log(us)
-               // console.log(ide)
-               // msg.channel.send(nick);
-               // msg.channel.send(us);
-               // msg.channel.send(ide);
-
-                msg.channel.send('{Test} loot-history command indicated.')
-                //msg.channel.send(getUserFromMention(msg.mentions.users.first().member.display_name))
-                //msg.channel.send(bot.guild.get(msg.mentions.users.first()));
-                //msg.channel.send(getUserFromMention(args[i+1]))
+            }).catch((err) => {console.log("Exception caught: " + err);});
             break;
             case "~guild-roster":
-                msg.channel.send('The guild roster command is not operational currently.');
+                msg.channel.send('The guild roster command is not currently operational.');
             break;
             case "~raid-roster":
-                msg.channel.send('The raid roster command is not operational currently.');
+                msg.channel.send('The raid roster command is not currently operational.');
             break;
             case "~attendance":
-                msg.channel.send('The attendance command is not operational currently.');
+                msg.channel.send('The attendance command is not currently operational.');
             break;
             case "~start-raid":
                 hasRaidBegun = true;
+                time = new Date().toDateString();                                   // form a new time for the taid to begin
                 msg.channel.send(msg.author.username + ' has begun the raid for ' + time + '. Good luck!');
             break;
             case "~end-raid":
                 hasRaidBegun = false;
+                time = null;                                                        // if the raid ended, remove the access date
                 msg.channel.send(msg.author.username + ' has ended the raid for ' + time);
             break;
         default: 
@@ -153,40 +238,12 @@ bot.on('message', async (msg) => {
     }
 });
 
-async function asyncForEach(array, callback) { // modifies version of forEach, taken from https://codeburst.io/javascript-async-await-with-foreach-b6ba62bbf404
-    for (let index = 0; index < array.length; index += 1) {
-        await callback(array[index], index, array);
-    }
-}
 
 
-function getUserFromMention(msg) {
+function getClassFromMention(msg) {
 	if (!msg) return;
-    var returnClass = '';
-
-    //return bot.users.cache.get(msg);
-    //return msg;
-    //return bot.users.fetch(msg.author);
-    //return msg.mentions.first();
-
-
-       
-        
-        if (msg.startsWith('<@') && msg.endsWith('>')) {
-            msg = msg.slice(2, -1);
+    var returnClass = '';      
     
-            if (msg.startsWith('!')) {
-                msg = msg.slice(1);
-            }
-                //return msg.author;
-                return bot.users.cache.get(msg).displayName;
-            
-            //return msg.guild.roles.get(msg.id);
-            //return bot.users.cache.get(msg).username;
-        }
-        
-    } 
-    /*   
     if (bot.users.cache.get(msg) == undefined){
         if(msg == priestRoleID){
             returnClass = 'Priest';
@@ -206,11 +263,12 @@ function getUserFromMention(msg) {
             returnClass = 'Paladin';
         }
         return returnClass;
-    }   
-    else{
+    
+    }
+}
 
 
-}*/
+
 
 function helpMessage (usr){
     usr.send("Hello and thank you for using the Loot Assistant bot.");
@@ -228,39 +286,53 @@ function helpMessage (usr){
 }
 
 
-function applyLoot (msg, usr, pos, args, isRetracted=false){
-    
-    var i;
-    var itemString = '';                                                                        // The string for the loot item the player receives 
-   
-    for(i = pos; i < args.length; ++i){                                                         // Start at the position in the command list when applyLoot is called
-        if(args[i].startsWith(commandPrefix)) break;                                            // all commands shall start with '~' if they do, it's not an (item)
-        itemString = itemString + (args[i]) + ' ';                                              // append all string literals into an (item)
-    }
-
-
+function applyLoot (msg, lootString, lootUsr, accessDate, isRetracted=false){
+    // lootString may contain the item to retract or give to the player.
 
     if(isRetracted){                                                                            // is the item being retracted from the document
-        console.log('The Item being removed is ' + itemString)                                  // display the string (item) to the console
-
-        msg.channel.send(msg.author.username + ' has retracted ' + itemString +' from ' + usr); // display the message to discord
+        console.log('The Item being removed is ' + lootString)                                  // display the string (item) to the console
+        msg.channel.send(msg.author.username + ' has retracted ' + lootString +' from ' + lootUsr); // display the message to discord
+        
+        //credentials, callback, callbackString, callbackDate, isWriting =false
+        fs.readFile('credentials.json', (err, content) => {
+        if (err) return console.log('Error loading client secret file:', err);
+        // Authorize a client with credentials, then call the Google Sheets API.
+        authorize(JSON.parse(content), _accessUserFromDoc, lootString, lootUsr, accessDate, true, true);
+        })
 
     }else{                                                                                      // then the item is being applied to the document
-        console.log('The Item being added is ' + itemString)                                    // display the string (item) to the console
-        _accessUserFromDoc()
-        msg.channel.send(msg.author.username + ' has given '+ itemString + ' to ' + usr);       // display the message to discord
+        console.log('The Item being added is ' + lootString)                                    // display the string (item) to the console
+        msg.channel.send(msg.author.username + ' has given '+ lootString + ' to ' + lootUsr);       // display the message to discord
+       
+        //credentials, callback, callbackString, callbackDate, isWriting =false
+        fs.readFile('credentials.json', (err, content) => {
+        if (err) return console.log('Error loading client secret file:', err);
+        // Authorize a client with credentials, then call the Google Sheets API.
+        authorize(JSON.parse(content), _accessUserFromDoc, lootString, lootUsr, accessDate, true, false);
+        })
     }
-    
-    console.log(i);
-    
-    return i;
+
 }
 
-function lootHistory (msg, usr, playerClass, accessDate, isClassFlag=false){
+function lootHistory (msg, historyUsr, playerClass, accessDate, isClassFlag=false){
+    var historyString = '';                                                                        // The string for the loot item the player receives 
+
+
+
     if(isClassFlag){                                                                            // class mode, has to access all members of the class
-
+        //credentials, callback, callbackString, callbackDate, isWriting =false
+        fs.readFile('credentials.json', (err, content) => {
+            if (err) return console.log('Error loading client secret file:', err);
+            // Authorize a client with credentials, then call the Google Sheets API.
+            authorize(JSON.parse(content), _accessClassFromDoc, historyString, historyUsr, accessDate, false, false);
+            })
     }else{                                                                                      // individual user mode
-
+        //credentials, callback, callbackString, callbackDate, isWriting =false
+        fs.readFile('credentials.json', (err, content) => {
+            if (err) return console.log('Error loading client secret file:', err);
+            // Authorize a client with credentials, then call the Google Sheets API.
+            authorize(JSON.parse(content), _accessUserFromDoc, historyString, historyUsr, accessDate, false, false);
+            })
     }
 
 }
@@ -271,13 +343,170 @@ function raidRoster (msg){
 
 }
 
-function _accessUserFromDoc (usr, accessDate){
+function authorize(credentials, callback, callbackString, callbackUsr, callbackDate, isWriting =false, isRetracted =false) {
+  const {client_secret, client_id, redirect_uris} = credentials.installed;
+  const oAuth2Client = new google.auth.OAuth2(
+      client_id, client_secret, redirect_uris[0]);
+
+  // Check if we have previously stored a token.
+  fs.readFile(TOKEN_PATH, (err, token) => {
+    if (err) return getNewToken(oAuth2Client, callback);
+    oAuth2Client.setCredentials(JSON.parse(token));
+    callback(oAuth2Client, callbackString, callbackUsr, callbackDate, isWriting, isRetracted);
+  });
+}
+
+/**
+ * Get and store new token after prompting for user authorization, and then
+ * execute the given callback with the authorized OAuth2 client.
+ * @param {google.auth.OAuth2} oAuth2Client The OAuth2 client to get token for.
+ * @param {getEventsCallback} callback The callback for the authorized client.
+ */
+function getNewToken(oAuth2Client, callback, callbackString, callbackUsr, callbackDate, isWriting =false, isRetracted=false) {
+  const authUrl = oAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: SCOPES,
+  });
+  console.log('Authorize this app by visiting this url:', authUrl);
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  rl.question('Enter the code from that page here: ', (code) => {
+    rl.close();
+    oAuth2Client.getToken(code, (err, token) => {
+      if (err) return console.error('Error while trying to retrieve access token', err);
+      oAuth2Client.setCredentials(token);
+      // Store the token to disk for later program executions
+      fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
+        if (err) return console.error(err);
+        console.log('Token stored to', TOKEN_PATH);
+      });
+      callback(oAuth2Client, callbackString, callbackUsr, callbackDate, isWriting);
+    });
+  });
+}
+
+//user is a string
+// Used in the command ~loot and ~loot-history
+function _accessUserFromDoc (auth, accessString, usr, accessDate, isWriting=false, isRetracted=false){
+    
+    var isFound = false;
+
+    const sheets = google.sheets({version: 'v4', auth});
+    if(isWriting){                                                              // writing to the document 
+                                                                                // ~loot @User
+        sheets.spreadsheets.values.update({
+            spreadsheetId: spreadID,
+            range: '\'Molten Core\'!B1:DW62',
+            valueInputOption: 'RAW'
+            }, (err, res) => {
+                if (err) return console.log('The API returned an error: ' + err);
+                //console.log("TEST")
+                const rows = res.data.values;
+                //console.log("TEST")
+                if(isRetracted){                                                // remove an item from a player
+                //console.log("TEST")
+                    var index = 4;
+                    while(!isFound){
+                        if(usr == rows[index]){                                 // user located
+                            isFound = true;
+                        }else{                                                  // increment the index to check the next user
+                            ++index;
+                        }
+                    }
+                    if(isFound){
+                        //TODO: loop through all the date icons to locate the current raid, and then REMOVE the item
+                        console.log(rows[index])
+                    }else return console.log('Unable to locate the user');
+
+                }else{                                                          // give an item to a player
+                    //console.log("TEST")
+                    var index = 4;
+                    while(!isFound){
+                        if(usr == rows[index]){                                 // user located
+                            isFound = true;
+                        }else{                                                  // increment the index to check the next user
+                            ++index;
+                        }
+                    }
+                    if(isFound){
+                        //TODO: loop through all the date icons to locate the current raid, and then ADD the item
+                        console.log(rows[index])
+                    }else return console.log('Unable to locate the user');
+
+                }
+
+          });
+    }else{                                                                      // reading from the document
+                                                                                // ~loot-history @User
+        sheets.spreadsheets.values.get({
+            spreadsheetId: spreadID,
+            range: '!B1:DW62',
+            }, (err, res) => {
+                if (err) return console.log('The API returned an error: ' + err);
+                const rows = res.data.values;
+
+                if (rows.length) {
+
+                    console.log(rows.length)
+                    for(let j = 1; j < rows.length; ++j){
+
+                        if(usr == (rows[j][0])){                   // user located
+                            console.log(`${rows[j][0]}`)
+                            //for(let k = 0; k < 6; ++k){
+                            //    console.log(`${rows[j][k]}`)
+                            //}
+                        
+                        }
+                    }
+                } else {
+                console.log('No data found.');
+            }
+          });
+    }
+
 
 }
 
-function _accessClassFromDoc (playerClass, accessDate){
+function _getPlayerLocation(){
 
 }
+function _changeItem(){
+
+}
+function _makeColumn(){
+    
+}
+
+// player class is a string
+// only used in command ~loot-history @Class
+function _accessClassFromDoc (auth, accessString, playerClass, accessDate, isWriting=false, isRetracted=false){
+    const sheets = google.sheets({version: 'v4', auth});
+
+}
+/*
+   
+    const sheets = google.sheets({version: 'v4', auth});
+
+    sheets.spreadsheets.values.get({
+    spreadsheetId: '1Uyd3PpkEt6z985lVIFUxLlS4awXOpB1WdkyJewB8WOg',
+    range: 'B:DW',
+    }, (err, res) => {
+        if (err) return console.log('The API returned an error: ' + err);
+        const rows = res.data.values;
+        if (rows.length) {
+        //console.log('Name, Major:');
+        // Print columns A and E, which correspond to indices 0 and 4.
+        rows.map((row) => {
+            console.log(`${row[0]}, ${row[4]}`);
+        });
+        } else {
+        console.log('No data found.');
+    }
+  });
+*/
+
 
 bot.on('error', err => {
    console.warn(err);
