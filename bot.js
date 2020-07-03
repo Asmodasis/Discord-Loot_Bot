@@ -16,7 +16,7 @@ const commandPrefix = '~';                                                      
 const botToken = '..';
 const guildID = "";
 
-const officerRoleID = '';
+const officerRoleID = ''; // TEST if all but officer is 0
 const programmerRoleID = '';
 const guildMasterRoleID = '';
 const classLeaderRoleID = '';
@@ -29,9 +29,14 @@ const warlockRoleID = '<@&>';
 const hunterRoleID = '<@&>';
 const rogueRoleID = '<@&>';
 const paladinRoleID = '<@&>';
+const shamanRoleID = '<@&>';
+const monkRoleID = '<@&>';
+const deathKnightRoleID = '<@&>';
+const demonHunterRoleID = '<@&>';
 
-const raidFileName = "Skill_vendor_loot.txt"
-
+//const raidFileName = "Skill_vendor_loot.txt"
+let raidFileName;
+let raidDate;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -44,9 +49,9 @@ var hasRaidBegun = true; // TODO : This value was changed to assist in debugging
 
 
 bot.on('ready', () => {                                                                         // When the bot is connected and ready, log to console.
-   console.log('Loot Assistant is connected and ready.');
-   //const guild = new Discord.Guild(bot, bot.database.query)
-  bot.user.setPresence({
+    console.log('Loot Assistant is connected and ready.');
+
+    bot.user.setPresence({
         game: { 
             name: 'Loot Assistant',
             type: 'WATCHING'
@@ -90,192 +95,123 @@ bot.on('message', async (msg) => {
         return;
     }
    
-
     
-
     for(var i = 0; i < args.length; ++i){
-        let command = args[i].toLowerCase();                                                    // force all arguments to lowercase for easy of use
-    
-        switch(command) {                                                                       // check the valid commands
-            case "~help":
-            case "~h":
-                helpMessage(msg.author);                                                        // display the help message to the invokers private message
-            break;
-            case "~loot": 
-            case "~l":
-                if(!(hasRaidBegun)) { //TODO: A raid doesn't need to be active, but the second argument will be the raid date
-                    msg.channel.send('A raid must be active before loot can be applied!');
-                    return;
-                }else{                                                                                            // handles loot distribution for the specified players
-                    await member.then((values) => {
-                        var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
-                        let lootUsr = '';
-                        let lootString = '';
-                        for(var pos = i+2; pos < args.length; ++pos){                                              // Start at the position in the command list when 
-                            if(args[pos].startsWith(commandPrefix)) break;                                            // all commands shall start with '~' if they do, it's not an (item)
-                            lootString = lootString + (args[pos]) + ' ';                                           // append all string literals into an (item)
-                        }                    
+            let command = args[i].toLowerCase();                                                    // force all arguments to lowercase for easy of use
+        await member.then((values) => {
+            let commandUsr = '';                                                                    // the user beind referenced 
+            let commandString = '';                                                                 // The items in question
 
-                        if((nick == null)){                                                         // if the nickname is null, the user doesn't have one
-                            lootUsr = firstUser.username;
-                        }else{
-                            lootUsr = nick;
-                        }
+            for(var pos = i+2; pos < args.length; ++pos){                                           // Start at the position in the command list when 
+                if(args[pos].startsWith(commandPrefix)) break;                                      // all commands shall start with '~' if they do, it's not an (item)
+                commandString += (args[pos]) + ' ';                                                 // append all string literals into an (item)
+            } 
 
-                        //applyLoot(msg, lootString, lootUsr, time, false);
-                        console.log(lootUsr)
-                }).catch((err) => {console.log("Exception caught: " + err);});
-            }
-            break;
-            case "~retract":
-            case "~r":
-                if(!(hasRaidBegun)) {
-                    msg.channel.send('A raid must be active before loot can be revoked!');
-                    return;
-                }else{
-                    await member.then((values) => {
-                        var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
-                        let retractUsr = '';
-                        let retractString = '';
-                        for(var pos = i+2; pos < args.length; ++pos){                                              // Start at the position in the command list when 
-                            if(args[pos].startsWith(commandPrefix)) break;                                            // all commands shall start with '~' if they do, it's not an (item)
-                            retractString = retractString + (args[pos]) + ' ';                                           // append all string literals into an (item)
-                        }                    
-
-                        if((nick == null)){                                                         // if the nickname is null, the user doesn't have one
-                            retractUsr = firstUser.username;
-                        }else{
-
-                            retractUsr = nick;
-                        }
-
-                        applyLoot(msg, retractString, retractUsr, time, true);
-                }).catch((err) => {console.log("Exception caught: " + err);});
-            }
-            break;
-            case "~~add-player": 
-            case "~ap":
-                if(!(hasRaidBegun)) {
-                    msg.channel.send('A raid must be active before a player can be added to the roster!');
-                    return;
-                }else{                                                                                            // handles loot distribution for the specified players
-                    await member.then((values) => {
-                        var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
-                        let lootUsr = '';
-                        let lootString = '';
-                        for(var pos = i+2; pos < args.length; ++pos){                                              // Start at the position in the command list when 
-                            if(args[pos].startsWith(commandPrefix)) break;                                            // all commands shall start with '~' if they do, it's not an (item)
-                            lootString = lootString + (args[pos]) + ' ';                                           // append all string literals into an (item)
-                        }                    
-
-                        if((nick == null)){                                                         // if the nickname is null, the user doesn't have one
-                            lootUsr = firstUser.username;
-                        }else{
-                            lootUsr = nick;
-                        }
-
-                        //applyLoot(msg, lootString, lootUsr, time, false);
-                        console.log(lootUsr);
-                        console.log(getClassFromMention(args[i+2]));    // TODO: if null handle it
-                }).catch((err) => {console.log("Exception caught: " + err);});
-            }
-            break;
-            case "~loot-history":
-            case "~lh":
-                await member.then((values) => {
-                    var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
-
-                    if(nick == null){                                                   // if the nickname is null, the user doesn't have one
-                        if(!(firstUser==null)){                                          
-                            lootHistory (msg, firstUser.username, null, time, false)
-                        }else{                                                          // we're in class mode
-
-                            lootHistory (msg, null, getClassFromMention(args[i+1]), time, true);
-                        }
-  
-                    }else {                                                             // the user has an assigned nickname
-                        lootHistory (msg, nick, null, time, false);
-                    }
-
-            }).catch((err) => {console.log("Exception caught: " + err);});
-            break;
-
-            case "~raid-roster":
-            case "~rr":
-            case "~rost":  
-                msg.channel.send('The raid roster command is not currently operational.');
-            break;
-            case "~attendance":
-            case "~a":
-                msg.channel.send('The attendance command is not currently operational.');
-            break;
-            case "~create-raid":
-            case "~cr":
-            case "~c":
-                hasRaidBegun = true;
-                time = new Date().toDateString();                                   // form a new time for the taid to begin
-                msg.channel.send(msg.author.username + ' has begun the raid for ' + time + '. Good luck!');
-            break;
-            case "~delete-raid":
-            case "~dr":
-            case "~d":
-                hasRaidBegun = false;
-                time = null;                                                        // if the raid ended, remove the access date
-                msg.channel.send(msg.author.username + ' has ended the raid for ' + time);
-            break;
-            case "~test": //TODO: REMOVE
-            case "~t":
-                                                                                            // handles loot distribution for the specified players
-                    time = new Date().toDateString(); 
-                    await member.then((values) => {
-                        var nick = (values.nickname == null) ? null : values.nickname               // enforce null conditions
-                        let testUsr = '';
-                        let testString = '';
-                        for(var pos = i+2; pos < args.length; ++pos){                                              // Start at the position in the command list when 
-                            if(args[pos].startsWith(commandPrefix)) break;                                            // all commands shall start with '~' if they do, it's not an (item)
-                            if(getClassFromMention(args[i+2]) == null)
-                                testString = testString + (args[pos]) + ' ';                                           // append all string literals into an (item)
-                            else testString = getClassFromMention(args[i+2]);
-                        }                    
-
-                        if((nick == null)){                                                         // if the nickname is null, the user doesn't have one
-                            testUsr = firstUser.username;
-                        }else{
-                            testUsr = nick;
-                        }
-
-                        //applyLoot(msg, lootString, lootUsr, time, false);
-                        //console.log(testUsr);
-                        //console.log(getClassFromMention(args[i+2]));    // TODO: if null handle it
-                        var testArray = [], testArray2 = [];
-                        testArray.push('Asmodasis');
-                        testArray2.push('Priest');
-                        testArray.push('Gritty');
-                        testArray2.push('Mage');
-                        testArray.push('Murgold');
-                        testArray2.push('Warlock');
-                        //msg.channel.send(createNewFile("test_file_1.txt", null, null));
-                        //msg.channel.send(createNewFile("test_file_1.txt", testArray, testArray2));
-                        //restoreBackup("test_file_1.txt", "test_file_1_backup.txt")
-                        backupFile("test_file_1.txt", "test_file_1_backup.txt");
-                        //msg.channel.send(addDate("test_file_1.txt", "6/27/2020(Molten Core)"));
-                        //(takeAttendance("test_file_1.txt", 'Gritty', "6/27/2020"));
-                        //addPlayer("test_file_1.txt", "Eliza", "Druid");
-                        //editPlayer("test_file_1.txt", 'Asmodasis', "6/27/2020(AQ)", "neck" , true);
-                        //readPlayer("test_file_1.txt", 'Asmodasis', "6/27/2020(AQ)", 7);
-                        //readPlayer("test_file_1.txt", 'Kracht', "6/27/2020(Molten Core)", 'all');
-                        //readClass("test_file_1.txt", 'Priest', "Tsd", 2)
-                        //readClass("test_file_1.txt", 'Priest', "6/27/2020(AQ)", 4)
-                }).catch((err) => { console.log(err); if(!(err == null)) msg.channel.send(err);}); //msg.channel.send(err);
-    
+            switch(command) {                                                                       // check the valid commands
+                
+                case "~help":
+                case "~h":
+                    helpMessage(msg.author);                                                        // display the help message to the invokers private message
                 break;
-        default: 
+                case "~loot-history":
+                case "~lh":
+                    if(args[i+2].toLowerCase() == 'all'){
+                        if(getClassFromMention(args[i+1]) == null) readPlayer(raidFileName, usr, raidDate, 'all');
+                        else readClass(raidFileName, usrClass, raidDate, 'all');
+                    }else if (args[i+2] !== null && args[i+2] > 0){
+                        if(getClassFromMention(args[i+1]) == null) readPlayer(raidFileName, usr, raidDate, args[i+2]);
+                        else readClass(raidFileName, usrClass, raidDate, args[i+2]);
+                    }else {
+                        if(getClassFromMention(args[i+1]) == null) readPlayer(raidFileName, usr, raidDate, 4);
+                        else readClass(raidFileName, usrClass, raidDate, 4);
+                    }
+                break;
+                //////////////////////////// Officer commands /////////////////////////////
+                //These commands will have limited access, only officers and programmers may use these commands
+                case "~loot": 
+                case "~l":
+                    var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
+                    if((nick == null)){                                                                     // if the nickname is null, the user doesn't have one
+                        commandUsr = firstUser.username;
+                    }else{
+                        commandUsr = nick;
+                }
+                    editPlayer(raidFileName, commandUsr, raidDate, commandString, false);
+                break;
+                case "~retract":
+                case "~r":
+                    editPlayer(raidFileName, commandUsr, raidDate, commandString, true);
+                break;
+                case "~~add-player": 
+                case "~ap":
+                    if(getClassFromMention(args[i+2]) == null) throw 'Can not add a player without a class!'; 
+                    else addPlayer(raidFileName, commandUsr, getClassFromMention(args[i+2]));
+                break;
+                case "~~remove-player": 
+                case "~rp":
+                    removePlayer(raidFileName, commandUsr);
+                break;
+    
+                case "~attendance":
+                case "~a":
+                    takeAttendance(raidFileName, commandUsr, raidDate)
+                break;
+                case "~start-raid":
+                    raidDate = args[i+1];
+                    throw ('The raid for ' + raidDate + ' has begun. Good luck!');
+                break;
+                case "~end-raid":
+                    let returnString = ('The raid for ' + raidDate + ' has ended.')
+                    raidDate = '';
+                    throw returnString;
+                break;
+                case "~create-raid":
+                case "~cr":
+                case "~c":
+                    addDate(raidFileName, args[i+1])
+                break;
+                case "~delete-raid":
+                case "~dr":
+                case "~d":
+                    removeRaid(raidFileName, args[i+1])
+                break;
+                case "~set-file":
+                    raidFileName = args[i+1];
+                    throw ('File set for the bot as ' + raidFileName + ' all operations will be performed on this file unless specified otherwise.');
+                break;            
+                case "~create-file":
+                    createNewFile(args[i+1], userList, classList)
+                break;
+                case "~backup-file":
+                    backupFile(raidFileName, backupFileName)
+                break;    
+                case "~restore-file":
+                    restoreBackup(fileName, backupFileName)
+                break;
+                case "~delete-file":
+                    if(fs.existsSync(args[i+1])){
+                        fs.unlink(args[i+1], function (err) {                                                      // delete the previous backup file
+                            if (err) throw err;
+                            throw 'File: '+ args[i+1] +' has been Deleted.';
+                            //console.log('Old Backup File deleted!');
+                          });
+                    
+                    }
+                break;
+                //////////////////////////// Officer commands /////////////////////////////     
+            default: 
+            
+            }
+
+
         
-        }
-    }
-});
+    }).catch((err) => { console.log(err); if(!(err == null)) msg.channel.send(err);});              // Catch any errors or messages, display to the console and the discord bot
+    
+
+}});
 
 
+//TODO: Add all classes for the modern expansion
 
 function getClassFromMention(msg) {
 	if (!msg) return;
@@ -298,6 +234,14 @@ function getClassFromMention(msg) {
             returnClass = 'Rogue';
         }else if(msg == paladinRoleID){
             returnClass = 'Paladin';
+        }else if(msg == shamanRoleID){
+            returnClass = 'Shaman';
+        }else if(msg == monkRoleID){
+            returnClass = 'Monk';
+        }else if(msg == deathKnightRoleID){
+            returnClass = 'Demon Hunter';
+        }else if(msg == demonHunterRoleID){
+            returnClass = 'Death Knight';
         }else 
             returnClass = null;
         return returnClass;
@@ -305,15 +249,14 @@ function getClassFromMention(msg) {
     }
 }
 
-
-
 //TODO: Fix help message
 function helpMessage (usr){
     usr.send("Hello and thank you for using the Loot Assistant bot.");
-    usr.send("You have indicated that you would like assitance.");
     usr.send("The following are a list of commands that may be invoked.");
     usr.send("All commands must start with the control character indicated by '~', without the quotations.");
     usr.send("'~loot' followed by an @user and [item text] will indicate that loot had been given to said user.");
+    usr.send("'~add-player' followed by an @user and [item text] will indicate that loot had been given to said user.");
+    usr.send("'~remove-player' followed by an @user and [item text] will indicate that loot had been given to said user.");
     usr.send("'~retract' followed by an @user and [item text] will retract the item from the user.");
     usr.send("'~loot-history' followed by an @user or @role will display the loot history for that player or class.");
     usr.send("'~attendance' ");
@@ -323,7 +266,7 @@ function helpMessage (usr){
     usr.send("Please do not respond to this direct message and good luck in the raid!");
 }
 
-
+/*
 function applyLoot (msg, lootString, lootUsr, accessDate, isRetracted=false){
     // lootString may contain the item to retract or give to the player.
 
@@ -355,6 +298,7 @@ function lootHistory (msg, historyUsr, playerClass, accessDate, isClassFlag=fals
     }
 
 }
+*/
 
 function createNewFile(fileName, userList, classList){
     
@@ -692,7 +636,7 @@ function readPlayer(fileName, usr, accessDate, amountOfEntries){
 
     for(find = 0; find < tempString.length; ++find){
         //console.log(find);
-        if((tempString[find] == usr)){                                                                             // redundant: but checks for user prior to adding
+        if((tempString[find] == usr)){                                                                              // redundant: but checks for user prior to adding
             break;
         }
     }
