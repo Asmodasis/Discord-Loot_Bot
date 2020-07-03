@@ -1,9 +1,0 @@
-Name,Asmodasis,Gritty,Murgold,Kracht,Autumnwind,Eliza
-Class,Priest,Mage,Warlock,Warrior,Priest,Druid
-6/26/2020,{Ring},{absent},{absent},{absent},{absent},{absent}
-6/27/2020(ZG),{No Item},{Ring},{absent},{absent},{absent},{absent}
-6/27/2020(Zul gurub),{absent},{absent},{absent},{absent},{absent},{absent}
-6/27/2020(Molten Core),{This ring},{No Item},{absent},{absent},{absent},{absent}
-6/27/2020(BWL),{Rejuve gem},{absent},{absent},{absent},{absent},{absent}
-6/27/2020(MC),{absent},{absent},{absent},{Edgemaster's},{absent},{absent}
-6/27/2020(AQ),{This Ring/neck/Thunderfury/Jindo's Evil Eye},{absent},{No Item},{absent},{absent},{absent}
