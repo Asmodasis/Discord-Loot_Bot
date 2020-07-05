@@ -1,44 +1,14 @@
+
 //Author: Shawn Ray
 
 const Discord = require('discord.js');                                                          // The class client for connecting a bot to discord.                             
-//var assert = require('assert')                                                                  // for handling assertions 
-///const SynchronousPromise = require('synchronous-promise')
 
 const fs = require('fs');
-//const readline = require('readline');
-//const { raw } = require('body-parser');
-//const { ifError } = require('assert');
 
-const commandPrefix = '~';                                                                      // The prefix to initialize the commands
-
-
-///////////////////////////////// Discord Server Unique Information ///////////////////////////////////////////////////////////////
-const botToken = '..';
-const guildID = "";
-
-const officerRoleID = ''; // TEST if all but officer is 0
-const programmerRoleID = '';
-const guildMasterRoleID = '';
-const classLeaderRoleID = '';
-
-const priestRoleID = '<@&>';
-const warriorRoleID = '<@&>';
-const druidRoleID = '<@&>';
-const mageRoleID = '<@&>';
-const warlockRoleID = '<@&>';
-const hunterRoleID = '<@&>';
-const rogueRoleID = '<@&>';
-const paladinRoleID = '<@&>';
-const shamanRoleID = '<@&>';
-const monkRoleID = '<@&>';
-const deathKnightRoleID = '<@&>';
-const demonHunterRoleID = '<@&>';
 
 //const raidFileName = "Skill_vendor_loot.txt"
 let raidFileName;
 let raidDate;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const bot = new Discord.Client();                                                               // Create a Client instance with our bot token.
 
@@ -58,37 +28,41 @@ bot.on('ready', () => {                                                         
         },
         status: 'online'
 })
-
+    raidFileName = 'NO FILE';                                                                   // when the bot turns on, there is no file
+    raidDate = undefined;                                                                       // no raid date either. These are commands the user must implement
 });
 
-var nick, us, ide;
+
+//var nick, us, ide;
 
 // Every time a message is sent anywhere the bot is present,
 // this event will fire and and check the valid commands and display
 // the appropriate responses
 bot.on('message', async (msg) => {
 
-    const guild = bot.guilds.cache.get(guildID);                                                // generate the guild list
+    const guild = bot.guilds.cache.get(process.env.guildID);                                                // generate the guild list
 
 
     var time;
     if (msg.author.bot) return;                                                                 // if the author of the message is a bot, don't do anything
-    if(!msg.content.startsWith(commandPrefix)) return;                                          // only accept commands in the form of the prefix
+    if(!msg.content.startsWith(process.env.commandPrefix)) return;                                          // only accept commands in the form of the prefix
     if (!msg.guild) return;                                                                     // won't respond to direct messages
 
     let args = msg.content.split(' ');
     let firstUser = (msg.mentions.users == null) ? null : msg.mentions.users.first()            // enforce null conditions
-
+    
+    
+    
     let member = new Promise ((resolve, reject) => {
         resolve(guild.members.fetch(firstUser));                                                // don't accept rejections
 
     });
     //TODO: Officers should only be able to ivnoke item items, anyone should be able to access loot history
     //TODO: Limit the bots access to specific roles
-    if(!(msg.member.roles.cache.has(officerRoleID)     ||
-         msg.member.roles.cache.has(programmerRoleID)  ||
-         msg.member.roles.cache.has(guildMasterRoleID) ||
-         msg.member.roles.cache.has(classLeaderRoleID)
+    if(!(msg.member.roles.cache.has(process.env.officerRoleID)     ||
+         msg.member.roles.cache.has(process.env.programmerRoleID)  ||
+         msg.member.roles.cache.has(process.env.guildMasterRoleID) ||
+         msg.member.roles.cache.has(process.env.classLeaderRoleID)
          )
        ){
         msg.channel.send('Only a user with an Officer role may invoke this bot.');
@@ -103,7 +77,7 @@ bot.on('message', async (msg) => {
             let commandString = '';                                                                 // The items in question
 
             for(var pos = i+2; pos < args.length; ++pos){                                           // Start at the position in the command list when 
-                if(args[pos].startsWith(commandPrefix)) break;                                      // all commands shall start with '~' if they do, it's not an (item)
+                if(args[pos].startsWith(process.env.commandPrefix)) break;                                      // all commands shall start with '~' if they do, it's not an (item)
                 commandString += (args[pos]) + ' ';                                                 // append all string literals into an (item)
             } 
 
@@ -113,17 +87,31 @@ bot.on('message', async (msg) => {
                 case "~h":
                     helpMessage(msg.author);                                                        // display the help message to the invokers private message
                 break;
+                
                 case "~loot-history":
                 case "~lh":
+                    var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
+                    if((nick == null)){                                                                     // if the nickname is null, the user doesn't have one
+                        if(getClassFromMention(args[i+1]) == null) commandUsr = firstUser.username;
+                    }else{
+                        if(getClassFromMention(args[i+1]) == null) commandUsr = nick;
+                    }
                     if(args[i+2].toLowerCase() == 'all'){
-                        if(getClassFromMention(args[i+1]) == null) readPlayer(raidFileName, usr, raidDate, 'all');
-                        else readClass(raidFileName, usrClass, raidDate, 'all');
-                    }else if (args[i+2] !== null && args[i+2] > 0){
-                        if(getClassFromMention(args[i+1]) == null) readPlayer(raidFileName, usr, raidDate, args[i+2]);
-                        else readClass(raidFileName, usrClass, raidDate, args[i+2]);
+                        if(getClassFromMention(args[i+1]) == null){
+                            readPlayer(raidFileName + '.txt', commandUsr, raidDate, 'all');
+                        }
+                        else readClass(raidFileName + '.txt', getClassFromMention(args[i+1]), raidDate, 'all');
+                    }else if (args[i+2] > 0 ){
+                        if(getClassFromMention(args[i+1]) == null){
+                            readPlayer(raidFileName + '.txt', commandUsr, raidDate, args[i+2]);
+                        } 
+                        else readClass(raidFileName + '.txt', getClassFromMention(args[i+1]), raidDate, args[i+2]);
                     }else {
-                        if(getClassFromMention(args[i+1]) == null) readPlayer(raidFileName, usr, raidDate, 4);
-                        else readClass(raidFileName, usrClass, raidDate, 4);
+                        if(getClassFromMention(args[i+1]) == null){
+
+                            readPlayer(raidFileName + '.txt', commandUsr, raidDate, 4); //TODO, bug here when called without all 
+                        } 
+                        else readClass(raidFileName + '.txt', getClassFromMention(args[i+1]), raidDate, 4);
                     }
                 break;
                 //////////////////////////// Officer commands /////////////////////////////
@@ -136,68 +124,113 @@ bot.on('message', async (msg) => {
                     }else{
                         commandUsr = nick;
                 }
-                    editPlayer(raidFileName, commandUsr, raidDate, commandString, false);
+                    editPlayer(raidFileName + '.txt', commandUsr, raidDate, commandString, false);
                 break;
                 case "~retract":
                 case "~r":
-                    editPlayer(raidFileName, commandUsr, raidDate, commandString, true);
+                    var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
+                    if((nick == null)){                                                                     // if the nickname is null, the user doesn't have one
+                        commandUsr = firstUser.username;
+                    }else{
+                        commandUsr = nick;
+                }
+                    editPlayer(raidFileName + '.txt', commandUsr, raidDate, commandString, true);
                 break;
-                case "~~add-player": 
+                case "~add-player": 
                 case "~ap":
+                    var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
+                    if((nick == null)){                                                                     // if the nickname is null, the user doesn't have one
+                        commandUsr = firstUser.username;
+                    }else{
+                        commandUsr = nick;
+                }
                     if(getClassFromMention(args[i+2]) == null) throw 'Can not add a player without a class!'; 
-                    else addPlayer(raidFileName, commandUsr, getClassFromMention(args[i+2]));
+                    else addPlayer(raidFileName + '.txt', commandUsr, getClassFromMention(args[i+2]));
                 break;
-                case "~~remove-player": 
+                case "~remove-player": 
                 case "~rp":
-                    removePlayer(raidFileName, commandUsr);
+                    var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
+                    if((nick == null)){                                                                     // if the nickname is null, the user doesn't have one
+                        commandUsr = firstUser.username;
+                    }else{
+                        commandUsr = nick;
+                }
+                    removePlayer(raidFileName + '.txt', commandUsr);
                 break;
     
                 case "~attendance":
                 case "~a":
-                    takeAttendance(raidFileName, commandUsr, raidDate)
+                    var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
+                    if((nick == null)){                                                                     // if the nickname is null, the user doesn't have one
+                        commandUsr = firstUser.username;
+                    }else{
+                        commandUsr = nick;
+                }
+                    takeAttendance(raidFileName + '.txt', commandUsr, raidDate)
                 break;
-                case "~start-raid":
-                    raidDate = args[i+1];
-                    throw ('The raid for ' + raidDate + ' has begun. Good luck!');
+                
+
+                case "~set-raid":   // requires raid date
+                case "~sr":
+                        raidDate = args[i+1];
+                    throw 'The Currently set raid date for modification purposes is ' + raidDate + ' be sure to either change this or ~create-raid {date attribute} by next raid.' ;
                 break;
-                case "~end-raid":
+
+                case "~end-raid":   // requires nothing extra
                     let returnString = ('The raid for ' + raidDate + ' has ended.')
                     raidDate = '';
                     throw returnString;
                 break;
-                case "~create-raid":
+
+                case "~create-raid": // requires raid date
                 case "~cr":
                 case "~c":
-                    addDate(raidFileName, args[i+1])
+                    raidDate = args[i+1];
+                    addDate(raidFileName + '.txt', args[i+1])
                 break;
-                case "~delete-raid":
+                case "~delete-raid": // requires raid date
                 case "~dr":
                 case "~d":
-                    removeRaid(raidFileName, args[i+1])
+                    removeRaid(raidFileName + '.txt', args[i+1])
                 break;
-                case "~set-file":
+                case "~set-file":   // requires file name
+                    if(fs.existsSync(args[i+1]+'.txt')){
+                        raidFileName = args[i+1];
+                        throw ('The file ' + raidFileName + ' has been set for the lifespan of the bot. To change this please ~set-file again');
+                    }else 
+                        throw ('That file does not exist, please use ~create-file {filename} first, no extensions.\nThen check the file name with ~what-file.\nThank you.');
+                break; 
+                case "~what-file":  // requires nothing extra
+                    if(raidFileName == 'NO FILE')
+                        msg.channel.send('There is not a currently set file, please use ~create-file {filename} if the file doesn\'t exist. \nThen use ~set-file {filename} to set the file for the lifespan of the bot.');
+                    else
+                        msg.channel.send('The currently set file to read from is : '+ raidFileName + '.txt' );
+                break;
+                case "~create-file": // requires file name
                     raidFileName = args[i+1];
-                    throw ('File set for the bot as ' + raidFileName + ' all operations will be performed on this file unless specified otherwise.');
-                break;            
-                case "~create-file":
-                    createNewFile(args[i+1], userList, classList)
+                    if(args[i+2] == undefined)
+                        createNewFile(args[i+1] + '.txt', null, null)
+                    else 
+                        createNewFile(args[i+1] + '.txt', args[i+2], args[i+3])
                 break;
-                case "~backup-file":
-                    backupFile(raidFileName, backupFileName)
+                case "~backup-file":  // requires nothing extra
+                    backupFile(raidFileName + '.txt', raidFileName+'_backup.txt')
                 break;    
-                case "~restore-file":
-                    restoreBackup(fileName, backupFileName)
+                case "~restore-file":  // requires nothing extra
+                    restoreBackup(raidFileName + '.txt', raidFileName+'_backup.txt')
                 break;
-                case "~delete-file":
-                    if(fs.existsSync(args[i+1])){
-                        fs.unlink(args[i+1], function (err) {                                                      // delete the previous backup file
+                case "~delete-file":  // requires file name
+                    if(fs.existsSync(args[i+1]+'.txt')){
+                        fs.unlink(args[i+1]+'.txt', function (err) {                                                // delete the previous backup file
                             if (err) throw err;
-                            throw 'File: '+ args[i+1] +' has been Deleted.';
-                            //console.log('Old Backup File deleted!');
+                            msg.channel.send('File has been Deleted.\nFile has been reset, please create a new file if needed\nPlease do ~set-file {filename} in order to keep using this bot.');
+
                           });
                     
                     }
+                    raidFileName = 'NO FILE';
                 break;
+
                 //////////////////////////// Officer commands /////////////////////////////     
             default: 
             
@@ -205,7 +238,7 @@ bot.on('message', async (msg) => {
 
 
         
-    }).catch((err) => { console.log(err); if(!(err == null)) msg.channel.send(err);});              // Catch any errors or messages, display to the console and the discord bot
+    }).catch((err) => { console.log(err); if(!(err == null)) msg.channel.send(err);});                              // Catch any errors or messages, display to the console and the discord bot
     
 
 }});
@@ -266,39 +299,6 @@ function helpMessage (usr){
     usr.send("Please do not respond to this direct message and good luck in the raid!");
 }
 
-/*
-function applyLoot (msg, lootString, lootUsr, accessDate, isRetracted=false){
-    // lootString may contain the item to retract or give to the player.
-
-    if(isRetracted){                                                                                // is the item being retracted from the document
-        //console.log('The Item being removed is ' + lootString)                                    // display the string (item) to the console
-        msg.channel.send(msg.author.username + ' has retracted ' + lootString +' from ' + lootUsr); // display the message to discord
-        
-
-
-    }else{                                                                                          // then the item is being applied to the document
-        //console.log('The Item being added is ' + lootString)                                      // display the string (item) to the console
-        msg.channel.send(msg.author.username + ' has given '+ lootString + ' to ' + lootUsr);       // display the message to discord
-       
-
-    }
-
-}
-
-function lootHistory (msg, historyUsr, playerClass, accessDate, isClassFlag=false){
-    var historyString = '';                                                                        // The string for the loot item the player receives 
-
-
-    if(isClassFlag){                                                                                // class mode, has to access all members of the class
-        //credentials, callback, callbackString, callbackDate, isWriting =false
-
-    }else{                                                                                          // individual user mode
-        //credentials, callback, callbackString, callbackDate, isWriting =false
-
-    }
-
-}
-*/
 
 function createNewFile(fileName, userList, classList){
     
@@ -308,38 +308,34 @@ function createNewFile(fileName, userList, classList){
     let fileData = '';
 
     if(!(userList == null)){  
-        if(!(userList.length == classList.length))                                                      // Every user MUST have a class
+        if(!(userList.length == classList.length))                                                                  // Every user MUST have a class
             throw 'Error received: Userlist and Classlist must have the same amount of elements.';
     
         for(let i = 0; i < userList.length; ++i){
-            conjoinUser += ','+userList[i].toString();                                   // add all the users into the file
-            conjoinClass += ','+classList[i].toString();                                 // every user has a class
+            conjoinUser += ','+userList[i].toString();                                                              // add all the users into the file
+            conjoinClass += ','+classList[i].toString();                                                            // every user has a class
         }
         fileData = 'Name' + conjoinUser + '\n' + 'Class' + conjoinClass;
     }else{
-        fileData = 'Name,' + '\n' + 'Class,';
+        fileData = 'Name' + '\n' + 'Class';
     }
   
         fs.writeFile(fileName, fileData, (err) => {
             if(err) throw err;
-            //throw 'New Raid file created.'
-            //console.log('New File created!')
         })
 
-    throw 'New Raid file created.';
+    throw 'New Raid file has been created created as '+ fileName +' also set for the lifespan of the bot.\nNo need to run ~set-file.';
 }
 
 function backupFile(fileName, backupFileName){
     if(fs.existsSync(backupFile)){
-        fs.unlink(backupFileName, function (err) {                                                      // delete the previous backup file
+        fs.unlink(backupFileName, function (err) {                                                                  // delete the previous backup file
             if (err) throw err;
-            //console.log('Old Backup File deleted!');
           });
     
     }
-        fs.copyFile(fileName, backupFileName, (err) => {                                              // copy the file to a backupfile 
+        fs.copyFile(fileName, backupFileName, (err) => {                                                            // copy the file to a backupfile 
             if (err) throw err;
-            //console.log('source.txt was copied to destination.txt');
           });
 
     throw ('Backup stored as ' + backupFileName);
@@ -347,9 +343,8 @@ function backupFile(fileName, backupFileName){
 }
 function restoreBackup(fileName, backupFileName){
 
-        fs.copyFile(backupFileName, fileName, (err) => {                                              // copy the file to a backupfile 
+        fs.copyFile(backupFileName, fileName, (err) => {                                                            // copy the file to a backupfile 
             if (err) throw err;
-            //console.log('source.txt was copied to destination.txt');
           });
 
     throw (fileName + ' restored from backup ' + backupFileName);
@@ -364,14 +359,14 @@ function addDate(fileName, raidDate){
     let raidArray = [];
     let lineArray = '';
 
-                                                                                                                  // how many cols are there in the file
-    for(let elem = 0; elem < contents.length; elem++){                                                            // split the file into an array for parsing
+                                                                                                                    // how many cols are there in the file
+    for(let elem = 0; elem < contents.length; elem++){                                                              // split the file into an array for parsing
         raidArray.push(contents[elem].split(','));
     }
 
     for(let find = 0; find < contents.length;++find)
 
-        if(raidArray[find][0] == raidDate)                                                                      // date is already in use
+        if(raidArray[find][0] == raidDate)                                                                          // date is already in use
             throw 'Only unique entries may be applied (Raid or date).';
 
 
@@ -391,13 +386,16 @@ function addDate(fileName, raidDate){
     }
         fs.writeFile(fileName, fileData, (err) => {
             if(err) throw err;
-            //console.log('New File created!')
         })
-    throw ('Raid Applied with attribute : ' + raidDate);
+    throw ('Raid added to the roster with attribute : ' + raidDate);
 }
 
-
+// TODO;(Untested) Only take attendance if it's {absent}
+// replace the return message if attendance is already taken
 function takeAttendance(fileName, usr, accessDate){
+
+    if(accessDate == undefined)
+        throw 'Date is not defined, please either use ~create-raid or the ~set-raid commands in order to continue.'
 
     let contents = fs.readFileSync(fileName, 'utf8').split('\n')
 
@@ -444,19 +442,21 @@ function takeAttendance(fileName, usr, accessDate){
         //console.log('New File created!')
     })
 
-    throw ("Attendance taken for " + usr + " with attribute " + accessDate);
+    throw ("Attendance taken for " + usr + " for the raid " + accessDate);
 }
 
 // TODO: Test user tag with class tag (Confirm class)
 // TODO: If no date, don't occupy with anything
 function addPlayer(fileName, usr, usrClass){
 
+
     let contents = fs.readFileSync(fileName, 'utf8').split('\n')
 
     let raidArray = [];
     let tempString = '';
-    //let foundRow = 0, foundCol = 0;
-                                                                                                                    // how many cols are there in the file
+
+    if(usr == undefined)
+        throw 'Player not specified, please try again.';
 
     tempString = contents[0].split(',');
     for(let find = 0; find < tempString.length; ++find){
@@ -464,6 +464,7 @@ function addPlayer(fileName, usr, usrClass){
             throw 'Player already exists in this raid roster.' ;
         }
     }
+
     tempString = contents[0]+','+usr;
     raidArray.push(tempString.split(','));
     tempString = contents[1]+','+usrClass;
@@ -475,9 +476,7 @@ function addPlayer(fileName, usr, usrClass){
     for(let iter = 2; iter < raidArray.length; ++iter){
         raidArray[iter][raidArray[0].length-1] = '{absent}'
     }
-    
-    //console.log(raidArray);
-    
+
     let fileData = '';
     for(let j = 0; j < raidArray.length; ++j){
         for(let i = 0; i < raidArray[0].length; ++i){
@@ -486,29 +485,36 @@ function addPlayer(fileName, usr, usrClass){
         }
         if(!(j == raidArray.length - 1)) fileData += '\n';
     }
-    //console.log(fileData);
+
     fs.writeFile(fileName, fileData, (err) => {
         if(err) throw err;
-        //console.log('New File created!')
+
     })
     throw (usr + " has been added to the roster, with class " + usrClass);
 
 }
 
+// TODO : IF removing the last item, replace with NO ITEM
 function editPlayer(fileName, usr, accessDate, playerItem, isRetracted=false){
+    
+    if(accessDate == undefined)
+        throw 'Date is not defined, please either use ~create-raid or the ~set-raid commands in order to continue.'
 
     let contents = fs.readFileSync(fileName, 'utf8').split('\n')
 
     if(playerItem == null)
         throw 'Loot can not be applied to a player without an item.';
 
+    playerItem = playerItem.trim();                                                                                // trim off the edged whitespace
+
     let raidArray = [];
     let tempArray = [];
     let tempString = '';
     let returnString = '';
     let foundRow = 0, foundCol = 0;                                                                                 // how many cols are there in the file
-    let find = 0;                                                                                                   // find locations                                                                                                                   
-    let count = 0;
+    let find = 0;                                                                                                   // find locations 
+    let foundFlag = false;                                                                                                                  
+    //let count = 0;
 
     tempString = contents[0].split(',');
     
@@ -517,9 +523,10 @@ function editPlayer(fileName, usr, accessDate, playerItem, isRetracted=false){
             break;
         }
     }
-    console.log(tempString.length-1);
-    if(find == tempString.length)
-        throw 'No player located, please add the player prior to editing the loot table.' ;
+    //console.log(tempString.length-1);
+    //console.log(find);
+    //if(find == tempString.length-1)
+    //    throw 'No player located, please add the player prior to editing the loot table.' ;
 
     for(let elem = 0; elem < contents.length; elem++){                                                              // split the file into an array for parsing
         raidArray.push(contents[elem].split(','));
@@ -534,7 +541,7 @@ function editPlayer(fileName, usr, accessDate, playerItem, isRetracted=false){
 
     }
     if(find == contents.length)                                                                                     // full epoch, no attribute found
-        throw 'No attribute located, can\'t edit loot for a player without a proper raid attribute';                     // no date located
+        throw 'No attribute located, can\'t edit loot for a player without a proper raid attribute';                // no date located
 
     for(find = 1; find < raidArray[0].length; ++find){
         if(raidArray[0][find] == usr){                                                                              // user located
@@ -544,7 +551,7 @@ function editPlayer(fileName, usr, accessDate, playerItem, isRetracted=false){
                                                                                                                     // only an error if user can't be copied(issue in node.js) to the raidArray
     }
 
-    if(find == raidArray[0].length-1)                                                                               // full epoch, no attribute found
+    if(foundCol == raidArray[0].length)                                                                             // full epoch, no attribute found
         throw 'No player located, please add the player prior to editing the loot table.' ;                         // no user located
     
     
@@ -559,26 +566,41 @@ function editPlayer(fileName, usr, accessDate, playerItem, isRetracted=false){
 
                 for(find = 0; find < tempArray.length; ++find){                                                              // iterate all items assigned to a player
                     
-                    if((tempArray[find] == playerItem))
+                    if((tempArray[find] == playerItem)){
+                        foundFlag = true;
                         break;
-
-                }
-                console.log(tempArray[find])
-                tempString = '{';
-                for(let i = 0; i < tempArray.length; ++i){
-                    if(tempArray[i] != tempArray[find]){
-                        if((i<tempArray.length-1)) tempString += tempArray[i]+'/';
-                        else tempString += tempArray[i];
                     }
+                        
 
                 }
+                if(!foundFlag)
+                    throw 'That item is not assigned to that player, it can not be removed.';
+                //console.log(tempArray[find])
+                tempString = '{';
+                
+                for(let i = 0; i < tempArray.length; ++i){
+                    if(tempArray[i] != tempArray[find]){ // TODO; addes an extra / on the middle
+                        //tempString += tempArray[i];
+                        //if(!(i == find-1)){
+                            if((i<tempArray.length-1)) tempString += tempArray[i] + '/';
+                            else tempString += tempArray[i];
+                        //}else{
+                            //tempString += tempArray[i];
+                            //++i;
+                        //}
+
+                    }//else 
+                      //  if((i<tempArray.length-1)) tempString  += tempArray[i];
+
+                }
+                
                 tempString += '}'; 
                 raidArray[foundRow][foundCol] = tempString;
                 returnString = (playerItem + ' has been removed from ' + usr + ' for the raid ' + accessDate);    
         }
 
     }else{                                                                                                          // GIVE ITEM MODE
-        if(raidArray[foundRow][foundCol] == '{absent}' || raidArray[foundRow][foundCol] == '{No Item}'){            // the player has no items yet
+        if(raidArray[foundRow][foundCol] == '{absent}' || raidArray[foundRow][foundCol] == '{No Item}'|| raidArray[foundRow][foundCol] == '{}'){ // the player has no items yet
 
             raidArray[foundRow][foundCol] = '{'+playerItem+'}';                                                                                              
             returnString = (playerItem + ' has been given to ' + usr + ' for the raid ' + accessDate);
@@ -612,7 +634,7 @@ function editPlayer(fileName, usr, accessDate, playerItem, isRetracted=false){
 
     fs.writeFile(fileName, fileData, (err) => {
         if(err) throw err;
-       console.log('New File created!')
+       //console.log('New File created!')
     })
     throw returnString;
 
@@ -620,6 +642,10 @@ function editPlayer(fileName, usr, accessDate, playerItem, isRetracted=false){
 
 function readPlayer(fileName, usr, accessDate, amountOfEntries){
     
+    if(accessDate == undefined)
+        throw 'Date is not defined, please either use ~create-raid or the ~set-raid commands in order to continue.'
+
+
     let contents = fs.readFileSync(fileName, 'utf8').split('\n')
 
     let raidArray = [];
@@ -665,7 +691,7 @@ function readPlayer(fileName, usr, accessDate, amountOfEntries){
 
 
     if(foundRow-1 < amountOfEntries)
-    throw 'Unable to fetch that many entries. There are not enough raids for that request.' ;
+        throw 'Unable to fetch that many entries. There are not enough raids for that request.' ;
 
     if(amountOfEntries == 'all')
         entries = foundRow-1;                                                                                       // the amount of dates there are in the file
@@ -697,6 +723,13 @@ function readPlayer(fileName, usr, accessDate, amountOfEntries){
 
 function readClass(fileName, usrClass, accessDate, amountOfEntries){
     
+    if(accessDate == undefined)
+        throw 'Date is not defined, please either use ~create-raid or the ~set-raid commands in order to continue.'
+
+    if(usrClass == undefined)
+        throw 'Class is not specified, please try that command again with the class tag.'
+
+
     let contents = fs.readFileSync(fileName, 'utf8').split('\n')
 
     let raidArray = [];
@@ -766,9 +799,117 @@ function readClass(fileName, usrClass, accessDate, amountOfEntries){
 
 function removePlayer(fileName, usr){
     
+    let contents = fs.readFileSync(fileName, 'utf8').split('\n')
+
+    if(usr == undefined)
+        throw 'Can not remove a player without specifying whom.';
+
+    let raidArray = [];
+    //let tempArray = [];
+    let tempString = '';
+    //let returnString = '';
+    let foundRow = 0, foundCol = 0;                                                                                 // how many cols are there in the file
+    let find = 0;                                                                                                   // find locations                                                                                                                   
+    //let count = 0;
+
+    tempString = contents[0].split(',');
+    
+    for(find = 0; find < tempString.length; ++find){
+        if((tempString[find] == usr)){                                                                             // redundant: but checks for user prior to adding
+            break;
+        }
+    }
+    //console.log(tempString.length-1);
+    if(find == tempString.length)
+        throw 'No player located, unable to remove.' ;
+
+    for(let elem = 0; elem < contents.length; elem++){                                                              // split the file into an array for parsing
+        raidArray.push(contents[elem].split(','));
+    }
+
+
+    for(find = 1; find < raidArray[0].length; ++find){
+        if(raidArray[0][find] == usr){                                                                              // user located
+            foundCol = find; 
+        break;       
+        }        
+                                                                                                                    // only an error if user can't be copied(issue in node.js) to the raidArray
+    }
+
+    if(find == raidArray[0].length-1)                                                                               // full epoch, no attribute found
+        throw 'No player located, unable to remove.' ;                                                              // no user located
+    
+
+    let fileData = '';
+    for(let j = 0; j < raidArray.length; ++j){
+        for(let i = 0; i < raidArray[0].length; ++i){
+            if(i !== foundCol){
+                if(i == raidArray[0].length - 1) fileData += raidArray[j][i].toString();
+                else fileData += raidArray[j][i].toString()+',';
+            }
+        }
+        if(!(j == raidArray.length - 1)) fileData += '\n';
+    }
+
+    fs.writeFile(fileName, fileData, (err) => {
+        if(err) throw err;
+       //console.log('New File created!')
+    })
+    throw (usr + ' has been removed from the raid roster.');
+
 }
 function removeRaid(fileName, accessDate){
+      
+    let contents = fs.readFileSync(fileName, 'utf8').split('\n')
+
+    if(accessDate == undefined)
+        throw 'Can not remove a raid without a proper raid attribute';
+
+    let raidArray = [];
+    //let tempArray = [];
+    let tempString = '';
+    //let returnString = '';
+    let foundRow = 0; //, foundCol = 0;                                                                             // how many cols are there in the file
+    let find = 0;                                                                                                   // find locations                                                                                                                   
+    //let count = 0;
+
+    tempString = contents[0].split(',');
     
+
+    for(let elem = 0; elem < contents.length; elem++){                                                              // split the file into an array for parsing
+        raidArray.push(contents[elem].split(','));
+    }
+ 
+
+    for(find = 0; find < contents.length;++find){
+        if(raidArray[find][0] == accessDate){                                                                       // date located
+            foundRow = find;
+            break;  
+        }   
+
+    }
+    if(find == contents.length)                                                                                     // full epoch, no attribute found
+        throw 'No attribute located, can\'t edit loot for a player without a proper raid attribute';                // no date located
+
+    let fileData = '';
+    for(let j = 0; j < raidArray.length; ++j){
+        if(j !== foundRow){
+            for(let i = 0; i < raidArray[0].length; ++i){
+                if(i !== foundRow){
+                    if(i == raidArray[0].length - 1) fileData += raidArray[j][i].toString();
+                    else fileData += raidArray[j][i].toString()+',';
+                }
+            }
+            if(!(j == raidArray.length - 1)) fileData += '\n';
+        }
+       
+    }
+
+    fs.writeFile(fileName, fileData, (err) => {
+        if(err) throw err;
+       //console.log('New File created!')
+    })
+    throw ('The raid ' + accessDate + ' has been removed from the raid history.');  
 }
 
 
@@ -776,4 +917,4 @@ bot.on('error', err => {
    console.warn(err);
 });
 
-bot.login(botToken);                                                                                                // connects the bot to the discord server.
+bot.login(process.env.botToken);                                                                                                // connects the bot to the discord server.
