@@ -94,13 +94,13 @@ bot.on('message', async (msg) => {
 
             switch(command) {                                                                               // check the valid commands
                 
-                case "~help":
-                case "~h":
+                case process.env.commandPrefix+"help":
+                case process.env.commandPrefix+"h":
                     helpMessage.helpMessage(msg.author);                                                    // display the help message to the invokers private message
                 break;
                 
-                case "~loot-history":
-                case "~lh":
+                case process.env.commandPrefix+"loot-history":
+                case process.env.commandPrefix+"lh":
                     if(args[i+1] == undefined) throw 'Please be sure to mention a player or a class for this command.';
                     var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
                     if((nick == null)){                                                                     // if the nickname is null, the user doesn't have one
@@ -128,8 +128,8 @@ bot.on('message', async (msg) => {
                 break;
                 //////////////////////////// Officer commands /////////////////////////////
                 //These commands will have limited access, only officers and programmers may use these commands
-                case "~loot": 
-                case "~l":
+                case process.env.commandPrefix+"loot": 
+                case process.env.commandPrefix+"l":
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to mention a player for this command.';
                     var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
@@ -140,8 +140,8 @@ bot.on('message', async (msg) => {
                     }
                     editPlayer.editPlayer(raidFileName + '.txt', commandUsr, raidDate, commandString, false);
                 break;
-                case "~retract":
-                case "~r":
+                case process.env.commandPrefix+"retract":
+                case process.env.commandPrefix+"r":
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to mention a player for this command.';
                     var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
@@ -152,8 +152,8 @@ bot.on('message', async (msg) => {
                 }
                     editPlayer.editPlayer(raidFileName + '.txt', commandUsr, raidDate, commandString, true);
                 break;
-                case "~add-player": 
-                case "~ap":
+                case process.env.commandPrefix+"add-player": 
+                case process.env.commandPrefix+"ap":
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to mention a player for this command.';
                     if(args[i+2] == undefined) throw 'Please be sure to mention a player\'s class for this command.';
@@ -166,8 +166,8 @@ bot.on('message', async (msg) => {
                     if(getClassFromMention.getClassFromMention(args[i+2], bot) == null) throw 'Can not add a player without a class!'; 
                     else addPlayer.addPlayer(raidFileName + '.txt', commandUsr, getClassFromMention.getClassFromMention(args[i+2], bot));
                 break;
-                case "~remove-player": 
-                case "~rp":
+                case process.env.commandPrefix+"remove-player": 
+                case process.env.commandPrefix+"rp":
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to mention a player for this command.';
                     var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
@@ -179,8 +179,8 @@ bot.on('message', async (msg) => {
                     removePlayer.removePlayer(raidFileName + '.txt', commandUsr);
                 break;
     
-                case "~attendance":
-                case "~a":
+                case process.env.commandPrefix+"attendance":
+                case process.env.commandPrefix+"a":
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to mention a player for this command.';
                     var nick = (values.nickname == null) ? null : values.nickname;                          // enforce null conditions
@@ -193,35 +193,35 @@ bot.on('message', async (msg) => {
                 break;
                 
 
-                case "~set-raid":                                                                           // requires raid date
-                case "~sr":
+                case process.env.commandPrefix+"set-raid":                                                                           // requires raid date
+                case process.env.commandPrefix+"sr":
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to type in a specific raid date.';
                         raidDate = args[i+1];
                     throw 'The Currently set raid date for modification purposes is ' + raidDate + ' be sure to either change this or ~create-raid {date attribute} by next raid.' ;
                 break;
-                case "~what-raid":                                                                          // requires nothing extra
-                case "~wr":
+                case process.env.commandPrefix+"what-raid":                                                                          // requires nothing extra
+                case process.env.commandPrefix+"wr":
                     throw ('The Currently set raid date for operations is  ' + raidDate + ' if you wish to change this, either use create-raid or set-raid commands.') ;
                 break;
 
-                case "~create-raid":                                                                        // requires raid date
-                case "~cr":
-                case "~c":
+                case process.env.commandPrefix+"create-raid":                                                                        // requires raid date
+                case process.env.commandPrefix+"cr":
+                case process.env.commandPrefix+"c":
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to type in a specific raid date.';
                     raidDate = args[i+1];
                     addDate.addDate(raidFileName + '.txt', args[i+1])
                 break;
-                case "~delete-raid":                                                                        // requires raid date
-                case "~dr":
-                case "~d":
+                case process.env.commandPrefix+"delete-raid":                                                                        // requires raid date
+                case process.env.commandPrefix+"dr":
+                case process.env.commandPrefix+"d":
                     onlyOfficer.onlyOfficer(msg);
                     if(raidFileName == 'NO FILE') throw 'Can\'t delete a raid without a specified raid file. Please set-file first.';
                     if(args[i+1] == undefined) throw 'Please be sure to type in a specific raid date.';
                     removeRaid.removeRaid(raidFileName + '.txt', args[i+1])
                 break;
-                case "~set-file":                                                                           // requires file name
+                case process.env.commandPrefix+"set-file":                                                                           // requires file name
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to type in a specific raid file, no extensions.';
                     if(fs.existsSync(args[i+1]+'.txt')){
@@ -230,14 +230,14 @@ bot.on('message', async (msg) => {
                     }else 
                         throw ('That file does not exist, please use ~create-file {filename} first, no extensions.\nThen check the file name with ~what-file.\nThank you.');
                 break; 
-                case "~what-file":                                                                          // requires nothing extra
+                case process.env.commandPrefix+"what-file":                                                                          // requires nothing extra
                     onlyOfficer.onlyOfficer(msg);
                     if(raidFileName == 'NO FILE')
                         msg.channel.send('There is not a currently set file, please use ~create-file {filename} if the file doesn\'t exist. \nThen use ~set-file {filename} to set the file for the lifespan of the bot.');
                     else
                         msg.channel.send('The currently set file to read from is : '+ raidFileName + '.txt' );
                 break;
-                case "~create-file":                                                                        // requires file name
+                case process.env.commandPrefix+"create-file":                                                                        // requires file name
                     onlyOfficer.onlyOfficer(msg)
                     if(args[i+1] == undefined) throw 'Please be sure to type in a specific raid file, no extensions.';
                     raidFileName = args[i+1];
@@ -246,19 +246,19 @@ bot.on('message', async (msg) => {
                     else 
                     bot_file.createNewFile(args[i+1] + '.txt', args[i+2], args[i+3]);
                 break;
-                case "~backup-file":                                                                        // requires nothing extra
+                case process.env.commandPrefix+"backup-file":                                                                        // requires nothing extra
                     onlyOfficer.onlyOfficer(msg);
                     if(raidFileName == 'NO FILE')
                         throw('There is not a currently set file, please use ~create-file {filename} if the file doesn\'t exist. \nThen use ~set-file {filename} to set the file for the lifespan of the bot.');
                     bot_file.backupFile(raidFileName + '.txt', raidFileName+'_backup.txt');
                 break;    
-                case "~restore-file":                                                                       // requires nothing extra
+                case process.env.commandPrefix+"restore-file":                                                                       // requires nothing extra
                     onlyOfficer.onlyOfficer(msg);
                     if(raidFileName == 'NO FILE')
                         throw('There is not a currently set file, please use ~create-file {filename} if the file doesn\'t exist. \nThen use ~set-file {filename} to set the file for the lifespan of the bot.');
                     bot_file.restoreBackup(raidFileName + '.txt', raidFileName+'_backup.txt');
                 break;
-                case "~delete-file":                                                                        // requires file name
+                case process.env.commandPrefix+"delete-file":                                                                        // requires file name
                     onlyOfficer.onlyOfficer(msg);
                     if(args[i+1] == undefined) throw 'Please be sure to type in a specific raid file, no extensions.';
                     if(fs.existsSync(args[i+1]+'.txt')){
