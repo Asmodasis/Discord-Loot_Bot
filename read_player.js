@@ -85,8 +85,8 @@ module.exports = {
             }        
                                                                                                                         // only an error if user can't be copied(issue in node.js) to the raidArray
         }
-
-        if(find == raidArray[0].length-1)                                                                               // full epoch, no attribute found
+        // Edited due to Off-by-one error 8/17/2020
+        if(find == raidArray[0].length)                                                                               // full epoch, no attribute found
             throw 'No player located, please add the player prior to editing the loot table.' ;                         // no user located
 
         returnString = 'The loot history for ' + usr + " is as follows: \n";
